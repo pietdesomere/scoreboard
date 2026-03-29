@@ -1,0 +1,64 @@
+name: Test and deploy
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binary-${{ runner.os }}-7
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Vitest
+          path: api/test-results.xml
+          reporter: java-junit
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      # After setting up Railway, replace the three placeholder values below
+      # with your actual Project ID, Service ID, and Environment ID.
+      # See docs/backend-setup.md — Step 5.
+      - name: Deploy to Railway
+        run: npx --yes @railway/cli@latest up --service REPLACE_WITH_RAILWAY_SERVICE_ID --project REPLACE_WITH_RAILWAY_PROJECT_ID --environment REPLACE_WITH_RAILWAY_ENVIRONMENT_ID --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
