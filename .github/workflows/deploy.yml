@@ -55,9 +55,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # After setting up Railway, replace the three placeholder values below
-      # with your actual Project ID, Service ID, and Environment ID.
-      # See docs/backend-setup.md — Step 5.
+      - name: Check RAILWAY_TOKEN is set
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN secret is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
       - name: Deploy to Railway
         run: npx --yes @railway/cli@latest up --service 88ff1137-d2ac-463a-bd87-593602478092 --project 62965477-5dd2-49a9-a261-6699969dc1cc --environment 5305e300-cd7c-484a-9533-24591ad8d971 --detach
         env:
