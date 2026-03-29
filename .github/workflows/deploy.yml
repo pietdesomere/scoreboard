@@ -59,6 +59,6 @@ jobs:
       # with your actual Project ID, Service ID, and Environment ID.
       # See docs/backend-setup.md — Step 5.
       - name: Deploy to Railway
-        run: npx --yes @railway/cli@latest up --service REPLACE_WITH_RAILWAY_SERVICE_ID --project REPLACE_WITH_RAILWAY_PROJECT_ID --environment REPLACE_WITH_RAILWAY_ENVIRONMENT_ID --detach
+        run: npx --yes @railway/cli@latest up --service 88ff1137-d2ac-463a-bd87-593602478092 --project 62965477-5dd2-49a9-a261-6699969dc1cc --environment 5305e300-cd7c-484a-9533-24591ad8d971 --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
