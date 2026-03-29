@@ -5,6 +5,7 @@ import { ensureIndexes } from "./db/indexes.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerGameRoutes } from "./routes/games.js";
 import { registerScoreRoutes } from "./routes/scores.js";
+import { registerClientRoute } from "./routes/client.js";
 
 const DEFAULT_ORIGINS = [
   "https://somere.be",
@@ -43,6 +44,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerHealthRoutes(app);
   await registerGameRoutes(app);
   await registerScoreRoutes(app);
+  await registerClientRoute(app);
 
   await app.ready();
   await ensureIndexes();

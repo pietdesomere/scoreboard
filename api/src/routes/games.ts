@@ -9,6 +9,12 @@ const createGameSchema = z.object({
 });
 
 export async function registerGameRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/games", async (_request, reply) => {
+    const db = await getDb();
+    const games = await db.collection("games").find({}, { projection: { _id: 0, id: 1, name: 1 } }).toArray();
+    return reply.send(games);
+  });
+
   app.post(
     "/admin/games",
     { preHandler: requireAdmin },

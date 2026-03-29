@@ -24,6 +24,26 @@ const ADMIN_HEADERS = {
   authorization: "Bearer test-admin-token",
 };
 
+describe("GET /games", () => {
+  it("returns empty array when no games exist", async () => {
+    const response = await app.inject({ method: "GET", url: "/games" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([]);
+  });
+
+  it("returns id and name of all registered games", async () => {
+    await app.inject({ method: "POST", url: "/admin/games", headers: ADMIN_HEADERS, body: JSON.stringify({ id: "g-1", name: "Game One" }) });
+    await app.inject({ method: "POST", url: "/admin/games", headers: ADMIN_HEADERS, body: JSON.stringify({ id: "g-2", name: "Game Two" }) });
+
+    const response = await app.inject({ method: "GET", url: "/games" });
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body).toHaveLength(2);
+    expect(body).toContainEqual({ id: "g-1", name: "Game One" });
+    expect(body).toContainEqual({ id: "g-2", name: "Game Two" });
+  });
+});
+
 describe("POST /admin/games", () => {
   it("rejects requests with no token", async () => {
     const response = await app.inject({

@@ -60,6 +60,28 @@ Health check.
 
 ---
 
+### `GET /games`
+
+List all registered games. Used by the JS client for game discovery.
+
+**Response `200`**
+```json
+[
+  { "id": "550e8400-e29b-41d4-a716-446655440000", "name": "My Awesome Game" },
+  { "id": "661f9511-f30c-52e5-b827-557766551111", "name": "Another Game" }
+]
+```
+
+Returns an empty array if no games have been registered yet.
+
+---
+
+### `GET /client.js`
+
+Returns a ready-to-use JavaScript client pre-configured with this server's base URL. See [integration-guide.md](integration-guide.md) for usage.
+
+---
+
 ### `POST /admin/games`
 
 Define a new game. Run once per game from Postman. Requires admin token.

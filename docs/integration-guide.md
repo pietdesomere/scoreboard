@@ -12,9 +12,16 @@ No login or API key is needed for these two operations. You only need your game'
 
 ## Quick start
 
+Add one script tag to your HTML — the client is served directly from the API and comes pre-configured with the correct URL:
+
+```html
+<script src="https://<your-domain>.railway.app/client.js"></script>
+```
+
+Then set your game's constants:
+
 ```html
 <script>
-const SCOREBOARD_URL = 'https://<your-domain>.railway.app';
 const GAME_ID = 'your-game-uuid-here';
 const GAME_VERSION = 1;
 </script>
@@ -27,50 +34,20 @@ const GAME_VERSION = 1;
 Call this when the player finishes a run (game over screen, level complete, etc.).
 
 ```javascript
-async function submitScore(playerName, score) {
-  try {
-    const response = await fetch(`${SCOREBOARD_URL}/scores`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        gameId: GAME_ID,
-        version: GAME_VERSION,
-        playerName: playerName.trim(),
-        score: Math.floor(score)   // must be an integer
-      })
-    });
-    return response.status === 201;  // true = stored, false = ignored
-  } catch {
-    return false;  // network error — fail silently
-  }
-}
+const saved = await Scoreboard.submitScore(GAME_ID, GAME_VERSION, playerName, score);
+// saved === true  → score was stored
+// saved === false → game not found, or network error (both fail silently)
 ```
 
-**Usage:**
-```javascript
-const saved = await submitScore('Alice', 12345);
-```
-
-> If `GAME_ID` is not recognized by the server, the server returns `204` and the score is silently ignored. This means you can ship the game before registering it and no errors will be thrown.
+> If `GAME_ID` is not yet registered on the server, the score is silently ignored and `false` is returned. You can ship the game before registering it without any errors.
 
 ---
 
 ## Displaying the scoreboard
 
 ```javascript
-async function getScoreboard(limit = 10) {
-  try {
-    const params = new URLSearchParams({ limit });
-    // Optionally pin a version: params.set('version', GAME_VERSION);
-    const response = await fetch(
-      `${SCOREBOARD_URL}/games/${GAME_ID}/scoreboard?${params}`
-    );
-    if (!response.ok) return null;
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
+const data = await Scoreboard.getScoreboard(GAME_ID, { limit: 10 });
+// data === null on network error or unknown game
 ```
 
 **Response shape:**
@@ -84,6 +61,11 @@ async function getScoreboard(limit = 10) {
     { "rank": 2, "playerName": "Bob",   "score": 9876,  "createdAt": "2026-01-15T10:32:00.000Z" }
   ]
 }
+```
+
+To pin a specific version:
+```javascript
+const data = await Scoreboard.getScoreboard(GAME_ID, { version: 1, limit: 10 });
 ```
 
 **Rendering example:**
@@ -123,13 +105,39 @@ function escapeHtml(str) {
 
 ## Full example flow
 
-```javascript
-// After game over:
-const name = prompt('Enter your name:') || 'Anonymous';
-await submitScore(name, finalScore);
+```html
+<script src="https://<your-domain>.railway.app/client.js"></script>
+<script>
+  const GAME_ID = 'your-game-uuid-here';
+  const GAME_VERSION = 1;
 
-// Show leaderboard:
-await renderScoreboard('leaderboard-div');
+  async function onGameOver(finalScore) {
+    const name = prompt('Enter your name:') || 'Anonymous';
+    await Scoreboard.submitScore(GAME_ID, GAME_VERSION, name, finalScore);
+    await renderScoreboard('leaderboard-div');
+  }
+
+  async function renderScoreboard(containerId) {
+    const data = await Scoreboard.getScoreboard(GAME_ID, { limit: 10 });
+    const container = document.getElementById(containerId);
+    if (!data || data.entries.length === 0) {
+      container.innerHTML = '<p>No scores yet. Be the first!</p>';
+      return;
+    }
+    const rows = data.entries.map(e =>
+      `<tr><td>${e.rank}</td><td>${escapeHtml(e.playerName)}</td><td>${e.score.toLocaleString()}</td></tr>`
+    ).join('');
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Score</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+</script>
 ```
 
 ---
