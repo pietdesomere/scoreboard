@@ -26,6 +26,7 @@ function buildClientJs(baseUrl: string): string {
 //     options.limit      — number of entries (default 10, max 100)
 //     options.mode       — "all" (default) | "best" (one entry per player: their highest score)
 //     options.playerName — filter to a single player's scores
+//     options.period     — "today" to show only scores submitted today (Europe/Brussels)
 //     → Promise<ScoreboardResult | null>
 //
 // TYPES
@@ -99,6 +100,7 @@ function buildClientJs(baseUrl: string): string {
       if (options && options.version != null) params.set("version", String(options.version));
       if (options && options.mode != null) params.set("mode", String(options.mode));
       if (options && options.playerName != null) params.set("playerName", String(options.playerName));
+      if (options && options.period != null) params.set("period", String(options.period));
       var query = params.toString() ? "?" + params.toString() : "";
       var response = await fetch(BASE_URL + "/games/" + encodeURIComponent(gameId) + "/scoreboard" + query);
       if (!response.ok) return null;

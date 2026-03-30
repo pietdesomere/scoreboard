@@ -88,6 +88,15 @@ const data = await Scoreboard.getScoreboard(GAME_ID, { playerName: "Alice" });
 
 You can combine options, e.g. `{ mode: "best", playerName: "Alice" }` to get Alice's single best score.
 
+### Today's scores
+
+Pass `period: "today"` to restrict the scoreboard to scores submitted today (midnight–now, `Europe/Brussels`):
+
+```javascript
+const data = await Scoreboard.getScoreboard(GAME_ID, { period: "today", mode: "best", limit: 10 });
+// Today's leaderboard, one entry per player
+```
+
 **Rendering example:**
 ```javascript
 async function renderScoreboard(containerId) {

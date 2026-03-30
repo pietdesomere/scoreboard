@@ -168,6 +168,7 @@ Retrieve scores for a game and version.
 | `limit` | integer | `10` | 1–100 |
 | `mode` | `"all"` \| `"best"` | `"all"` | `"best"` returns one entry per player (their highest score) |
 | `playerName` | string | *(all players)* | Filter to a single player's scores |
+| `period` | `"today"` | *(all time)* | Restrict to scores submitted today (midnight–now, `Europe/Brussels`) |
 
 **Response `200`**
 ```json

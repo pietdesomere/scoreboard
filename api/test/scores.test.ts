@@ -179,6 +179,24 @@ describe("GET /games/:gameId/scoreboard", () => {
     expect(entries[1].score).toBe(200);
   });
 
+  it("period=today returns scores submitted today and excludes older ones", async () => {
+    await createGame("g8", "Game 8");
+    // Submit a score now (today)
+    await submitScore("g8", 1, "Alice", 100);
+    // Back-date a score to yesterday by writing directly to the DB
+    const db = await (await import("../src/db/client.js")).getDb();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await db.collection("scores").insertOne({
+      gameId: "g8", version: 1, playerName: "Bob", score: 999, createdAt: yesterday,
+    });
+
+    const response = await app.inject({ method: "GET", url: "/games/g8/scoreboard?version=1&period=today" });
+    expect(response.statusCode).toBe(200);
+    const { entries } = response.json();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].playerName).toBe("Alice");
+  });
+
   it("playerName filter returns only that player's scores", async () => {
     await createGame("g7", "Game 7");
     await submitScore("g7", 1, "Alice", 100);

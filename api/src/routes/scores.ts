@@ -15,7 +15,23 @@ const scoreboardQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(10),
   mode: z.enum(["all", "best"]).default("all"),
   playerName: z.string().min(1).max(50).optional(),
+  period: z.enum(["today"]).optional(),
 });
+
+function startOfTodayInBrussels(): Date {
+  const now = new Date();
+  const dateStr = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Brussels" }).format(now);
+  const midnightUtc = new Date(dateStr + "T00:00:00Z");
+  const brusselsHour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/Brussels",
+      hour: "numeric",
+      hour12: false,
+    }).format(midnightUtc),
+    10
+  );
+  return new Date(midnightUtc.getTime() - brusselsHour * 60 * 60 * 1000);
+}
 
 const deleteScoresQuerySchema = z.object({
   playerName: z.string().min(1).max(50).optional(),
@@ -88,7 +104,7 @@ export async function registerScoreRoutes(app: FastifyInstance): Promise<void> {
     if (!queryParsed.success) {
       return sendError(reply, "INVALID_ARGUMENT", queryParsed.error.issues[0].message);
     }
-    const { version: requestedVersion, limit, mode, playerName } = queryParsed.data;
+    const { version: requestedVersion, limit, mode, playerName, period } = queryParsed.data;
 
     const db = await getDb();
 
@@ -115,6 +131,9 @@ export async function registerScoreRoutes(app: FastifyInstance): Promise<void> {
       const baseFilter: Record<string, unknown> = { gameId, version, deletedAt: { $exists: false } };
       if (playerName) {
         baseFilter.playerName = playerName;
+      }
+      if (period === "today") {
+        baseFilter.createdAt = { $gte: startOfTodayInBrussels() };
       }
 
       if (mode === "best") {
