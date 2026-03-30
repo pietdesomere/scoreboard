@@ -20,14 +20,25 @@ function buildClientJs(baseUrl: string): string {
 //     registered or a network error occurred (always fails silently).
 //     → Promise<boolean>
 //
+//     gameId      string   — the game's UUID as registered on the server
+//     version     integer  — positive integer; scoreboards are per-version
+//     playerName  string   — 1–50 characters; automatically trimmed and capped
+//     score       integer  — any integer; decimals are floored automatically
+//
 //   Scoreboard.getScoreboard(gameId, options?)
 //     Returns the scoreboard for a game and version.
-//     options.version    — omit to use the version with the most recent submission
-//     options.limit      — number of entries (default 10, max 100)
-//     options.mode       — "all" (default) | "best" (one entry per player: their highest score)
-//     options.playerName — filter to a single player's scores
-//     options.period     — "today" to show only scores submitted today (Europe/Brussels)
 //     → Promise<ScoreboardResult | null>
+//
+//     gameId               string   — the game's UUID
+//     options.version      integer  — positive integer; omit to use the version
+//                                     with the most recent submission
+//     options.limit        integer  — 1–100, default: 10
+//     options.mode         string   — "all" (default): all submissions in order
+//                                     "best": one entry per player (their highest score)
+//     options.playerName   string   — 1–50 characters; omit to include all players
+//     options.period       string   — omit for all time
+//                                     "today": scores submitted since midnight today
+//                                     (Europe/Brussels timezone)
 //
 // TYPES
 //   ScoreboardResult {
@@ -60,6 +71,9 @@ function buildClientJs(baseUrl: string): string {
 //
 //   // All scores for one player
 //   const mine = await Scoreboard.getScoreboard("550e8400-...", { playerName: "Alice" });
+//
+//   // Today's leaderboard (best score per player, Europe/Brussels)
+//   const today = await Scoreboard.getScoreboard("550e8400-...", { period: "today", mode: "best" });
 // =============================================================================
 
 (function (global) {
