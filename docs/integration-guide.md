@@ -68,6 +68,26 @@ To pin a specific version:
 const data = await Scoreboard.getScoreboard(GAME_ID, { version: 1, limit: 10 });
 ```
 
+### Best score per player
+
+Pass `mode: "best"` to get a deduplicated leaderboard where each player appears only once with their highest score:
+
+```javascript
+const data = await Scoreboard.getScoreboard(GAME_ID, { mode: "best", limit: 10 });
+// Each player appears once, ranked by their best score
+```
+
+### Scores for a single player
+
+Pass `playerName` to retrieve only that player's submissions:
+
+```javascript
+const data = await Scoreboard.getScoreboard(GAME_ID, { playerName: "Alice" });
+// data.entries contains all of Alice's scores, sorted best first
+```
+
+You can combine options, e.g. `{ mode: "best", playerName: "Alice" }` to get Alice's single best score.
+
 **Rendering example:**
 ```javascript
 async function renderScoreboard(containerId) {

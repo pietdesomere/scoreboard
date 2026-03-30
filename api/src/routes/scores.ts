@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
-import { sendError } from "./auth.js";
+import { sendError, requireAdmin } from "./auth.js";
 
 const submitScoreSchema = z.object({
   gameId: z.string().min(1),
@@ -13,6 +13,12 @@ const submitScoreSchema = z.object({
 const scoreboardQuerySchema = z.object({
   version: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(10),
+  mode: z.enum(["all", "best"]).default("all"),
+  playerName: z.string().min(1).max(50).optional(),
+});
+
+const deleteScoresQuerySchema = z.object({
+  playerName: z.string().min(1).max(50).optional(),
 });
 
 export async function registerScoreRoutes(app: FastifyInstance): Promise<void> {
@@ -45,6 +51,36 @@ export async function registerScoreRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+  app.delete(
+    "/admin/games/:gameId/scores",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const { gameId } = request.params as { gameId: string };
+
+      const queryParsed = deleteScoresQuerySchema.safeParse(request.query);
+      if (!queryParsed.success) {
+        return sendError(reply, "INVALID_ARGUMENT", queryParsed.error.issues[0].message);
+      }
+
+      const db = await getDb();
+
+      const game = await db.collection("games").findOne({ id: gameId });
+      if (!game) {
+        return sendError(reply, "NOT_FOUND", `No game found with id '${gameId}'`);
+      }
+
+      const filter: Record<string, unknown> = { gameId, deletedAt: { $exists: false } };
+      if (queryParsed.data.playerName) {
+        filter.playerName = queryParsed.data.playerName;
+      }
+
+      const deletedAt = new Date();
+      const result = await db.collection("scores").updateMany(filter, { $set: { deletedAt } });
+
+      return reply.send({ deleted: result.modifiedCount });
+    }
+  );
+
   app.get("/games/:gameId/scoreboard", async (request, reply) => {
     const { gameId } = request.params as { gameId: string };
 
@@ -52,7 +88,7 @@ export async function registerScoreRoutes(app: FastifyInstance): Promise<void> {
     if (!queryParsed.success) {
       return sendError(reply, "INVALID_ARGUMENT", queryParsed.error.issues[0].message);
     }
-    const { version: requestedVersion, limit } = queryParsed.data;
+    const { version: requestedVersion, limit, mode, playerName } = queryParsed.data;
 
     const db = await getDb();
 
@@ -67,7 +103,7 @@ export async function registerScoreRoutes(app: FastifyInstance): Promise<void> {
     } else {
       const latest = await db
         .collection("scores")
-        .find({ gameId })
+        .find({ gameId, deletedAt: { $exists: false } })
         .sort({ version: -1 })
         .limit(1)
         .toArray();
@@ -76,19 +112,47 @@ export async function registerScoreRoutes(app: FastifyInstance): Promise<void> {
 
     let entries: { rank: number; playerName: string; score: number; createdAt: Date }[] = [];
     if (version !== null) {
-      const rows = await db
-        .collection("scores")
-        .find({ gameId, version })
-        .sort({ score: -1, createdAt: 1 })
-        .limit(limit)
-        .toArray();
+      const baseFilter: Record<string, unknown> = { gameId, version, deletedAt: { $exists: false } };
+      if (playerName) {
+        baseFilter.playerName = playerName;
+      }
 
-      entries = rows.map((row, i) => ({
-        rank: i + 1,
-        playerName: row.playerName as string,
-        score: row.score as number,
-        createdAt: row.createdAt as Date,
-      }));
+      if (mode === "best") {
+        const pipeline = [
+          { $match: baseFilter },
+          { $sort: { score: -1, createdAt: 1 } },
+          {
+            $group: {
+              _id: "$playerName",
+              score: { $first: "$score" },
+              createdAt: { $first: "$createdAt" },
+            },
+          },
+          { $sort: { score: -1, createdAt: 1 } },
+          { $limit: limit },
+        ];
+        const rows = await db.collection("scores").aggregate(pipeline).toArray();
+        entries = rows.map((row, i) => ({
+          rank: i + 1,
+          playerName: row._id as string,
+          score: row.score as number,
+          createdAt: row.createdAt as Date,
+        }));
+      } else {
+        const rows = await db
+          .collection("scores")
+          .find(baseFilter)
+          .sort({ score: -1, createdAt: 1 })
+          .limit(limit)
+          .toArray();
+
+        entries = rows.map((row, i) => ({
+          rank: i + 1,
+          playerName: row.playerName as string,
+          score: row.score as number,
+          createdAt: row.createdAt as Date,
+        }));
+      }
     }
 
     return reply.send({

@@ -22,8 +22,10 @@ function buildClientJs(baseUrl: string): string {
 //
 //   Scoreboard.getScoreboard(gameId, options?)
 //     Returns the scoreboard for a game and version.
-//     options.version — omit to use the version with the most recent submission
-//     options.limit   — number of entries (default 10, max 100)
+//     options.version    — omit to use the version with the most recent submission
+//     options.limit      — number of entries (default 10, max 100)
+//     options.mode       — "all" (default) | "best" (one entry per player: their highest score)
+//     options.playerName — filter to a single player's scores
 //     → Promise<ScoreboardResult | null>
 //
 // TYPES
@@ -47,9 +49,16 @@ function buildClientJs(baseUrl: string): string {
 //
 //   await Scoreboard.submitScore("550e8400-...", 1, "Alice", 12345);
 //
+//   // All scores (default)
 //   const board = await Scoreboard.getScoreboard("550e8400-...", { limit: 10 });
 //   // { gameId: "...", gameName: "My Game", version: 1,
 //   //   entries: [{ rank: 1, playerName: "Alice", score: 12345, createdAt: "..." }] }
+//
+//   // Best score per player
+//   const best = await Scoreboard.getScoreboard("550e8400-...", { mode: "best", limit: 10 });
+//
+//   // All scores for one player
+//   const mine = await Scoreboard.getScoreboard("550e8400-...", { playerName: "Alice" });
 // =============================================================================
 
 (function (global) {
@@ -88,6 +97,8 @@ function buildClientJs(baseUrl: string): string {
       var params = new URLSearchParams();
       if (options && options.limit != null) params.set("limit", String(options.limit));
       if (options && options.version != null) params.set("version", String(options.version));
+      if (options && options.mode != null) params.set("mode", String(options.mode));
+      if (options && options.playerName != null) params.set("playerName", String(options.playerName));
       var query = params.toString() ? "?" + params.toString() : "";
       var response = await fetch(BASE_URL + "/games/" + encodeURIComponent(gameId) + "/scoreboard" + query);
       if (!response.ok) return null;

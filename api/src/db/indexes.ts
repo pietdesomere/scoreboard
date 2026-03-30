@@ -11,4 +11,10 @@ export async function ensureIndexes(): Promise<void> {
   await db.collection("scores").createIndex(
     { gameId: 1, version: -1 }
   );
+  await db.collection("scores").createIndex(
+    { gameId: 1, version: 1, playerName: 1 }
+  );
+  await db.collection("scores").createIndex(
+    { deletedAt: 1 }, { sparse: true }
+  );
 }

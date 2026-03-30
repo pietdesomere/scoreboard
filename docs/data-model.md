@@ -35,7 +35,12 @@ One document per submitted score. Multiple entries per player are allowed.
 | `playerName` | string | Free text; 1–50 characters |
 | `score` | number (int) | |
 | `createdAt` | Date | Server-set insertion time |
+| `deletedAt` | Date | *(optional)* Set by admin soft-delete; absent on live scores |
+
+All scoreboard and count queries filter to `{ deletedAt: { $exists: false } }` so soft-deleted scores are never shown to players.
 
 **Indexes**
 - `{ gameId: 1, version: 1, score: -1, createdAt: 1 }` — compound; supports scoreboard queries sorted by score
 - `{ gameId: 1, version: -1 }` — supports "latest version" lookup
+- `{ gameId: 1, version: 1, playerName: 1 }` — supports per-player scoreboard queries
+- `{ deletedAt: 1 }` sparse — supports admin soft-delete operations

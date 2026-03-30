@@ -158,7 +158,7 @@ If the `gameId` is not recognized, the request is silently ignored (returns `204
 
 ### `GET /games/:gameId/scoreboard`
 
-Retrieve the top scores for a game and version.
+Retrieve scores for a game and version.
 
 **Query parameters**
 
@@ -166,6 +166,8 @@ Retrieve the top scores for a game and version.
 |---|---|---|---|
 | `version` | integer | *(latest)* | Omit to get the version with the most recent submission |
 | `limit` | integer | `10` | 1–100 |
+| `mode` | `"all"` \| `"best"` | `"all"` | `"best"` returns one entry per player (their highest score) |
+| `playerName` | string | *(all players)* | Filter to a single player's scores |
 
 **Response `200`**
 ```json
@@ -186,6 +188,36 @@ If no scores exist for the requested game+version, `entries` is empty.
 
 If `version` was omitted and no scores exist at all, `version` in the response is `null`.
 
+Soft-deleted scores are never included in any response.
+
 **Errors**
 - `404 NOT_FOUND` — no game with this `gameId`
 - `400 INVALID_ARGUMENT` — invalid query parameter
+
+---
+
+### `DELETE /admin/games/:gameId/scores`
+
+Soft-delete scores for a game. Requires admin token.
+
+- Without `playerName`: soft-deletes **all** scores for the game.
+- With `playerName`: soft-deletes all scores for that player in the game.
+
+Soft-deleted scores are hidden from all scoreboard and submission responses but remain in the database (the `deletedAt` timestamp is set).
+
+**Query parameters**
+
+| Parameter | Type | Required | Notes |
+|---|---|---|---|
+| `playerName` | string | no | If provided, only this player's scores are deleted |
+
+**Response `200`**
+```json
+{ "deleted": 42 }
+```
+
+`deleted` is the number of score documents that were soft-deleted.
+
+**Errors**
+- `404 NOT_FOUND` — no game with this `gameId`
+- `401 UNAUTHENTICATED` — missing or wrong admin token

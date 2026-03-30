@@ -162,4 +162,92 @@ describe("GET /games/:gameId/scoreboard", () => {
     const response = await app.inject({ method: "GET", url: "/games/g5/scoreboard?version=1" });
     expect(response.json().entries).toHaveLength(2);
   });
+
+  it("mode=best returns one entry per player with their highest score", async () => {
+    await createGame("g6", "Game 6");
+    await submitScore("g6", 1, "Alice", 100);
+    await submitScore("g6", 1, "Alice", 300);
+    await submitScore("g6", 1, "Bob", 200);
+
+    const response = await app.inject({ method: "GET", url: "/games/g6/scoreboard?version=1&mode=best" });
+    expect(response.statusCode).toBe(200);
+    const { entries } = response.json();
+    expect(entries).toHaveLength(2);
+    expect(entries[0].playerName).toBe("Alice");
+    expect(entries[0].score).toBe(300);
+    expect(entries[1].playerName).toBe("Bob");
+    expect(entries[1].score).toBe(200);
+  });
+
+  it("playerName filter returns only that player's scores", async () => {
+    await createGame("g7", "Game 7");
+    await submitScore("g7", 1, "Alice", 100);
+    await submitScore("g7", 1, "Alice", 200);
+    await submitScore("g7", 1, "Bob", 999);
+
+    const response = await app.inject({ method: "GET", url: "/games/g7/scoreboard?version=1&playerName=Alice" });
+    expect(response.statusCode).toBe(200);
+    const { entries } = response.json();
+    expect(entries).toHaveLength(2);
+    expect(entries.every((e: { playerName: string }) => e.playerName === "Alice")).toBe(true);
+  });
+});
+
+describe("DELETE /admin/games/:gameId/scores", () => {
+  it("returns 401 without admin token", async () => {
+    await createGame("del-game", "Del Game");
+    const response = await app.inject({ method: "DELETE", url: "/admin/games/del-game/scores" });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("returns 404 for unknown game", async () => {
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/admin/games/no-such-game/scores",
+      headers: ADMIN_HEADERS,
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("soft-deletes all scores for a game", async () => {
+    await createGame("sd1", "SD Game 1");
+    await submitScore("sd1", 1, "Alice", 100);
+    await submitScore("sd1", 1, "Bob", 200);
+
+    const del = await app.inject({ method: "DELETE", url: "/admin/games/sd1/scores", headers: ADMIN_HEADERS });
+    expect(del.statusCode).toBe(200);
+    expect(del.json().deleted).toBe(2);
+
+    const board = await app.inject({ method: "GET", url: "/games/sd1/scoreboard?version=1" });
+    expect(board.json().entries).toHaveLength(0);
+  });
+
+  it("soft-deletes only the specified player's scores", async () => {
+    await createGame("sd2", "SD Game 2");
+    await submitScore("sd2", 1, "Alice", 100);
+    await submitScore("sd2", 1, "Alice", 150);
+    await submitScore("sd2", 1, "Bob", 200);
+
+    const del = await app.inject({
+      method: "DELETE",
+      url: "/admin/games/sd2/scores?playerName=Alice",
+      headers: ADMIN_HEADERS,
+    });
+    expect(del.statusCode).toBe(200);
+    expect(del.json().deleted).toBe(2);
+
+    const board = await app.inject({ method: "GET", url: "/games/sd2/scoreboard?version=1" });
+    const { entries } = board.json();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].playerName).toBe("Bob");
+  });
+
+  it("does not re-delete already soft-deleted scores", async () => {
+    await createGame("sd3", "SD Game 3");
+    await submitScore("sd3", 1, "Alice", 100);
+
+    await app.inject({ method: "DELETE", url: "/admin/games/sd3/scores", headers: ADMIN_HEADERS });
+    const second = await app.inject({ method: "DELETE", url: "/admin/games/sd3/scores", headers: ADMIN_HEADERS });
+    expect(second.json().deleted).toBe(0);
+  });
 });
